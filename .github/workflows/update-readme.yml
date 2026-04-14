@@ -1,0 +1,42 @@
+name: update readme
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: update activity section
+        run: |
+          YEARS=$(( $(date +%Y) - 2016 ))
+          COMMITS=$(gh api users/vinilouz/events/public --paginate -q 'length([])' 2>/dev/null || echo "?")
+
+          cat > activity_tmp.md <<EOF
+          <!--START_SECTION:activity-->
+          > \`${YEARS}+ years\` building for production · last refreshed $(date -u +%Y-%m-%d)
+          <!--END_SECTION:activity-->
+          EOF
+
+          # replace the activity section in README
+          sed -i '/<!--START_SECTION:activity-->/,/<!--END_SECTION:activity-->/{
+            /<!--START_SECTION:activity-->/{
+              r activity_tmp.md
+              d
+            }
+            /<!--END_SECTION:activity-->/d
+            d
+          }' README.md
+
+          rm activity_tmp.md
+
+      - name: commit if changed
+        run: |
+          git diff --quiet README.md || (git add README.md && git commit -m "readme: update activity" && git push)
